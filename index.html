@@ -114,7 +114,8 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 
   map.setView([35.6895, 139.6917], 10); // 東京中心、ズーム15
   // 1) 先にCSVを読み込んで colorMap を用意
-  loadColorCSV('list.csv?v=20250804', function(){
+  //loadColorCSV('list.csv?v=20250804', function(){
+  loadColorCSV(`list.csv?v=${Date.now()}`, function(){
     // 2) 準備ができたら GeoJSON を描画
     $.getJSON("lita.json", Data_OnLoad);
   });
