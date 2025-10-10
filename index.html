@@ -6,40 +6,44 @@
 <script src="https://code.jquery.com/jquery-3.4.1.min.js" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
-
 <style>
 html, body, #MAP { margin:0; padding:0; width:100%; height:100%; }
-
 /* 常時表示ラベル */
 .leaflet-tooltip.muni-label{
   background: transparent;
   border: none;
   box-shadow: none;
-  color: #111;              /* 文字色 */
+  color: #111;                 /* 文字色 */
   font: 14px/1.1 "Noto Sans JP", system-ui, sans-serif;
   text-align: center;
   text-shadow: 0 0 3px #fff, 0 0 6px #fff; /* 白のハローで地色に負けない */
-  pointer-events: none;      /* クリックを地物に通す */
+  pointer-events: none;        /* クリックを地物に通す */
 }
 </style>
-
-
 <script>
 var map;
 var colorMap = {}; // "都道府県 市区町村" => "色"
-
+/*
+function onEachFeature(feature, layer) {
+  var str = "";
+  if (feature.properties && feature.properties.full_name) {
+    str = feature.properties.full_name;
+  }
+  layer.bindPopup(str);
+}
+*/
 function onEachFeature(feature, layer) {
   var name = feature?.properties?.full_name || "";
-  name = name.replace(" ", "<br>");
+name = name.replace(" ", "<br>");
   if (name) {
+    // クリック不要の常時表示ラベル
     layer.bindTooltip(name, {
-      permanent: true,     // 常時表示
-      direction: 'center',   // ポリゴンの中央
-      className: 'muni-label'  // 上のCSSを適用
+      permanent: true,          // 常時表示
+      direction: 'center',      // ポリゴンの中央
+      className: 'muni-label'   // 上のCSSを適用
     });
   }
 }
-
 // CSVを読み込んで colorMap を作成
 function loadColorCSV(url, callback) {
   $.ajax({
@@ -49,14 +53,11 @@ function loadColorCSV(url, callback) {
     text.split(/\r?\n/).forEach(function(line){
       line = line.trim();
       if (!line) return;
+      // "東京都 世田谷区, red" のような行を想定（カンマ区切り、空白はトリム）
       var parts = line.split(',');
       if (parts.length >= 2) {
-        var name = parts[0].trim();
-        var color = parts[1].trim();
-        
-        // ★修正ポイント：CSVから読み込んだ名前の空白を削除し、キーを統一★
-        name = name.replace(/ /g, ""); 
-        
+        var name = parts[0].trim();   // 例: "東京都 世田谷区"
+        var color = parts[1].trim();  // 例: "red"
         if (name && color) colorMap[name] = color;
       }
     });
@@ -65,55 +66,42 @@ function loadColorCSV(url, callback) {
     if (callback) callback(); // 失敗しても地図は描く
   });
 }
-
 // GeoJSON 読み込み完了時
 function Data_OnLoad(data) {
   var layer = L.geoJson(data, {
     onEachFeature: onEachFeature,
     style: function(feature){
       var name = (feature.properties && feature.properties.full_name) || "";
-      
-      // ★既にHTMLにあった処理をそのまま残す（キーから空白を削除）★
-      name = name.replace(/ /g, "")
-      
+		name = name.replaceAll(" ", "")
       var num = colorMap[name];
-      var fill = 'white';
-
-      if (num == 1) fill = 'gold';
-      if (num == 2) fill = 'red';
-      if (num == 3) fill = 'lightgreen';
-      if (num == 4) fill = 'red';
-      if (num == 6) fill = 'red';
-      if (num == 7) fill = 'red';
-
-
+		var fill = 'white';
+		if (num == 1) fill = 'gold';
+		if (num == 2) fill = 'red';
+		if (num == 3) fill = 'lightgreen';
+		if (num == 4) fill = 'red';
+		if (num == 6) fill = 'red';
+		if (num == 7) fill = 'red';
       return {
-        color: '#666',     // 境界線色
-        weight: 0.5,         // 境界線の太さ
+        color: '#666',        // 境界線色
+        weight: 0.5,          // 境界線の太さ
         fillColor: fill || 'white', // 指定がなければ薄いグレー
         fillOpacity: fill ? 0.8 : 0.2
       };
     }
   }).addTo(map);
-
   //try { map.fitBounds(layer.getBounds()); } catch(e) {}
 }
-
 $(document).ready(function() {
   map = L.map("MAP");
-
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://www.carto.com/">CARTO</a>',
   subdomains: 'abcd',
   maxZoom: 20
 }).addTo(map);
-
-
   map.setView([35.6895, 139.6917], 10); // 東京中心、ズーム15
   // 1) 先にCSVを読み込んで colorMap を用意
-  
-  // ★重要: loadColorCSVのパスがRaw File URLであることを確認してください★
-  loadColorCSV(`list.csv?v=${Date.now()}`, function(){ 
+  //loadColorCSV('list.csv?v=20250804', function(){
+  loadColorCSV(`list.csv?v=${Date.now()}`, function(){
     // 2) 準備ができたら GeoJSON を描画
     $.getJSON("lita.json", Data_OnLoad);
   });
